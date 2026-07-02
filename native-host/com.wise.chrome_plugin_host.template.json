@@ -1,0 +1,9 @@
+{
+    "name": "com.wise.chrome_plugin_host",
+    "description": "Wise local host for rebuilding chrome-plugin script index",
+    "path": "__HOST_CMD_PATH__",
+    "type": "stdio",
+    "allowed_origins": [
+        "chrome-extension://__EXTENSION_ID__/"
+    ]
+}
