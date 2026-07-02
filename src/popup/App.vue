@@ -134,8 +134,14 @@ async function openScriptFile(script: ScriptItem) {
 }
 
 async function bookmarkScript(script: ScriptItem) {
+  // Strip comments (block and single-line), collapse whitespace/newlines to prevent syntax errors in bookmarklet
+  const cleanCode = script.code
+    .replace(/\/\*[\s\S]*?\*\/|([^\\:]|^)\/\/.*$/gm, '$1')
+    .replace(/\s+/g, ' ')
+    .trim();
+
   const bookmarkTitle = script.displayName || script.name || script.id;
-  const bookmarkUrl = `javascript:${script.code}`;
+  const bookmarkUrl = `javascript:${encodeURIComponent(cleanCode)}`;
 
   try {
     const parentId = await getBookmarksBarId();

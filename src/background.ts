@@ -32,6 +32,7 @@ function sendNativeMessage(message: any): Promise<any> {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+
     if (message?.type === 'IMPORT_SCRIPT_FILE') {
         sendNativeMessage({
             action: 'importScript',

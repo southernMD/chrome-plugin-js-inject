@@ -42,9 +42,17 @@ function Write-NativeMessage([object]$payload) {
 }
 
 
-function Rebuild-Index {
+function Get-ScriptsDir {
   $baseDir = Split-Path -Parent $PSScriptRoot
-  $scriptsDir = Join-Path $baseDir 'scripts'
+  $devDir = Join-Path $baseDir 'src/scripts'
+  if (Test-Path -LiteralPath $devDir) {
+    return $devDir
+  }
+  return Join-Path $baseDir 'scripts'
+}
+
+function Rebuild-Index {
+  $scriptsDir = Get-ScriptsDir
   $indexPath = Join-Path $scriptsDir 'index.json'
 
   if (-not (Test-Path -LiteralPath $scriptsDir)) {
@@ -99,8 +107,7 @@ function Import-Script([string]$fileName, [string]$content) {
     throw 'fileName is required'
   }
 
-  $baseDir = Split-Path -Parent $PSScriptRoot
-  $scriptsDir = Join-Path $baseDir 'scripts'
+  $scriptsDir = Get-ScriptsDir
   if (-not (Test-Path -LiteralPath $scriptsDir)) {
     throw "Scripts directory not found: $scriptsDir"
   }
@@ -119,8 +126,7 @@ function Delete-Script([string]$fileName) {
     throw 'fileName is required'
   }
 
-  $baseDir = Split-Path -Parent $PSScriptRoot
-  $scriptsDir = Join-Path $baseDir 'scripts'
+  $scriptsDir = Get-ScriptsDir
   if (-not (Test-Path -LiteralPath $scriptsDir)) {
     throw "Scripts directory not found: $scriptsDir"
   }
@@ -128,7 +134,15 @@ function Delete-Script([string]$fileName) {
   $safeFileName = Get-SafeFileName $fileName
   $targetPath = Join-Path $scriptsDir $safeFileName
   if (-not (Test-Path -LiteralPath $targetPath)) {
-    throw "Script file not found: $safeFileName"
+    # Check if a .ts version exists in development mode
+    $baseName = [IO.Path]::GetFileNameWithoutExtension($safeFileName)
+    $tsPath = Join-Path $scriptsDir "$baseName.ts"
+    if (Test-Path -LiteralPath $tsPath) {
+      $targetPath = $tsPath
+      $safeFileName = "$baseName.ts"
+    } else {
+      throw "Script file not found: $safeFileName"
+    }
   }
 
   Remove-Item -LiteralPath $targetPath -Force
@@ -143,8 +157,7 @@ function Open-Script([string]$fileName) {
     throw 'fileName is required'
   }
 
-  $baseDir = Split-Path -Parent $PSScriptRoot
-  $scriptsDir = Join-Path $baseDir 'scripts'
+  $scriptsDir = Get-ScriptsDir
   if (-not (Test-Path -LiteralPath $scriptsDir)) {
     throw "Scripts directory not found: $scriptsDir"
   }
@@ -152,7 +165,15 @@ function Open-Script([string]$fileName) {
   $safeFileName = Get-SafeFileName $fileName
   $targetPath = Join-Path $scriptsDir $safeFileName
   if (-not (Test-Path -LiteralPath $targetPath)) {
-    throw "Script file not found: $safeFileName"
+    # Check if a .ts version exists in development mode
+    $baseName = [IO.Path]::GetFileNameWithoutExtension($safeFileName)
+    $tsPath = Join-Path $scriptsDir "$baseName.ts"
+    if (Test-Path -LiteralPath $tsPath) {
+      $targetPath = $tsPath
+      $safeFileName = "$baseName.ts"
+    } else {
+      throw "Script file not found: $safeFileName"
+    }
   }
 
   Start-Process -FilePath $targetPath
