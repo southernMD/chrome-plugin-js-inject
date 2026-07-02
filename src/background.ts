@@ -6,19 +6,20 @@ chrome.runtime.onInstalled.addListener(async () => {
         await chrome.storage.local.set({ [STORAGE_KEY]: [] });
     }
 
-    chrome.tabs.create({ url: chrome.runtime.getURL('guide.html') });
+    chrome.tabs.create({ url: chrome.runtime.getURL('src/guide/index.html') });
 });
 
-function canUseUserScripts() {
+function canUseUserScripts(): boolean {
+    // @ts-ignore
     return !!(chrome.userScripts && typeof chrome.userScripts.execute === 'function');
 }
 
-function sendNativeMessage(message) {
+function sendNativeMessage(message: any): Promise<any> {
     return new Promise((resolve, reject) => {
         chrome.runtime.sendNativeMessage(
             'com.wise.chrome_plugin_host',
             message,
-            response => {
+            (response) => {
                 const lastError = chrome.runtime.lastError;
                 if (lastError) {
                     reject(new Error(lastError.message));
@@ -116,6 +117,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
                 return;
             }
 
+            // @ts-ignore
             const result = await chrome.userScripts.execute({
                 target: { tabId: activeTab.id },
                 js: [{ code: message.code }],
@@ -129,7 +131,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             }
 
             sendResponse({ ok: true });
-        } catch (error) {
+        } catch (error: any) {
             sendResponse({ ok: false, error: error.message || String(error) });
         }
     });

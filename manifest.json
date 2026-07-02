@@ -23,7 +23,7 @@
     },
     "action": {
         "default_title": "Local Script Manager",
-        "default_popup": "popup.html",
+        "default_popup": "src/popup/index.html",
         "default_icon": {
             "16": "icon-16.png",
             "32": "icon-32.png",
@@ -32,6 +32,7 @@
         }
     },
     "background": {
-        "service_worker": "background.js"
+        "service_worker": "src/background.ts",
+        "type": "module"
     }
 }
