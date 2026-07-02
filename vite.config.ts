@@ -4,11 +4,13 @@ import { crx } from '@crxjs/vite-plugin';
 import manifest from './manifest.json';
 import { resolve } from 'path';
 import { cpSync } from 'fs';
+import scriptsCompilerPlugin from './vite-plugins/scripts-compiler';
 
 export default defineConfig({
   plugins: [
     vue(),
     crx({ manifest }),
+    scriptsCompilerPlugin(),
     {
       name: 'copy-native-host',
       closeBundle() {
@@ -21,6 +23,13 @@ export default defineConfig({
       }
     }
   ],
+  server: {
+    port: 5173,
+    strictPort: true,
+    hmr: {
+      port: 5173,
+    },
+  },
   build: {
     rollupOptions: {
       input: {

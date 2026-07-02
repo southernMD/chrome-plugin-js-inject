@@ -24,10 +24,12 @@ chrome-plugin/
 │   │   ├── index.html
 │   │   ├── main.ts
 │   │   └── App.vue
-│   └── guide/                # 使用说明独立页面 (页面 & Vue 挂载)
-│       ├── index.html
-│       ├── main.ts
-│       └── App.vue
+│   ├── guide/                # 使用说明独立页面 (页面 & Vue 挂载)
+│   │   ├── index.html
+│   │   ├── main.ts
+│   │   └── App.vue
+│   └── user-scripts/         # 本地自定义脚本开发目录 (支持 TS/JS)
+│       └── test.ts           # 脚本源文件示例
 ├── public/                   # 静态资源目录 (打包时会自动复制到 dist 根目录)
 │   ├── icon-*.png            # 各种尺寸的黄底 JS 插件图标
 │   ├── icon.svg              # 矢量图标
@@ -96,3 +98,33 @@ npm run build
      ```
 2. **取消注册 (卸载)**：
    * 双击运行 `native-host` 目录下的 `unregister-host.bat` 即可一键清理注册表及配置文件。
+
+---
+
+## ✍️ 本地脚本开发 (User Scripts)
+
+项目提供了专用的入口，方便您直接使用 TypeScript 开发网页注入脚本：
+
+### 1. 编写脚本
+在 `src/user-scripts/` 目录下创建 `.ts`（或 `.js`）文件。例如 `src/user-scripts/my-script.ts`：
+```typescript
+/**
+ * @name 我的自定义脚本
+ * @description 这是在当前页面执行某个自动化操作的脚本。
+ */
+(() => {
+    console.log("脚本已执行！");
+})();
+```
+
+### 2. 元数据声明 (元数据头部)
+通过在脚本顶部编写 JSDoc 格式的注释，构建工具会自动提取它们并注册到清单中：
+* `@name`: 脚本显示在插件弹窗界面上的友好名称。
+* `@description`: 脚本的简短描述。
+
+### 3. 自动编译与自动注册
+* **开发模式下 (`npm run dev`)**:
+  构建工具会实时监听 `src/user-scripts/` 文件夹的变化。每当你新建、修改或删除脚本，它会**以毫秒级速度将其编译成 IIFE 格式的独立 JS 文件**输出到 `public/scripts/`，并自动更新 `public/scripts/index.json` 完成**自动注册**。
+* **生产构建下 (`npm run build`)**:
+  在正式打包时，所有的脚本都会被编译并随 `dist/` 一起输出。
+
