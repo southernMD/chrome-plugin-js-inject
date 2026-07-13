@@ -8,12 +8,20 @@ interface ScriptItem {
   description?: string;
   displayName: string;
   code: string;
+  autoRun: boolean;
+  autoRunDomains: string;
   statusText?: string;
   statusType?: 'success' | 'error' | '';
 }
 
 const SCRIPT_INDEX_PATH = 'scripts/index.json';
 const SCRIPT_TITLE_KEY = 'scriptTitleMap';
+const SCRIPT_AUTO_RUN_KEY = 'scriptAutoRunMap';
+
+interface ScriptAutoRunConfig {
+  enabled: boolean;
+  domains: string;
+}
 
 const scripts = ref<ScriptItem[]>([]);
 const loading = ref(false);
@@ -27,6 +35,17 @@ async function getTitleMap(): Promise<Record<string, string>> {
 
 async function setTitleMap(titleMap: Record<string, string>) {
   await chrome.storage.local.set({ [SCRIPT_TITLE_KEY]: titleMap });
+}
+
+async function getAutoRunMap(): Promise<Record<string, ScriptAutoRunConfig>> {
+  const result = await chrome.storage.local.get(SCRIPT_AUTO_RUN_KEY);
+  return result[SCRIPT_AUTO_RUN_KEY] && typeof result[SCRIPT_AUTO_RUN_KEY] === 'object'
+    ? result[SCRIPT_AUTO_RUN_KEY]
+    : {};
+}
+
+async function setAutoRunMap(autoRunMap: Record<string, ScriptAutoRunConfig>) {
+  await chrome.storage.local.set({ [SCRIPT_AUTO_RUN_KEY]: autoRunMap });
 }
 
 async function getBookmarksBarId(): Promise<string | undefined> {
@@ -69,9 +88,11 @@ async function fetchScripts() {
   try {
     const definitions = await loadScriptDefinitions();
     const titleMap = await getTitleMap();
+    const autoRunMap = await getAutoRunMap();
     
     scripts.value = await Promise.all(
       definitions.map(async item => {
+        const autoRunConfig = autoRunMap[item.id] || { enabled: false, domains: '' };
         let code = '';
         try {
           code = await loadScriptContent(item.path);
@@ -82,6 +103,8 @@ async function fetchScripts() {
           ...item,
           displayName: titleMap[item.id] || item.name,
           code,
+          autoRun: Boolean(autoRunConfig.enabled),
+          autoRunDomains: typeof autoRunConfig.domains === 'string' ? autoRunConfig.domains : '',
           statusText: '',
           statusType: ''
         };
@@ -104,9 +127,50 @@ async function updateDisplayName(script: ScriptItem, newName: string) {
   await setTitleMap(titleMap);
 }
 
+async function updateAutoRun(script: ScriptItem, enabled: boolean) {
+  script.autoRun = enabled;
+  const autoRunMap = await getAutoRunMap();
+  autoRunMap[script.id] = {
+    enabled,
+    domains: script.autoRunDomains || ''
+  };
+  await setAutoRunMap(autoRunMap);
+  setStatus(script, enabled ? '已开启自动执行' : '已关闭自动执行', 'success');
+  if (enabled) {
+    await runAutoScriptNow(script);
+  }
+}
+
+async function updateAutoRunDomains(script: ScriptItem, domains: string) {
+  script.autoRunDomains = domains;
+  const autoRunMap = await getAutoRunMap();
+  autoRunMap[script.id] = {
+    enabled: script.autoRun,
+    domains
+  };
+  await setAutoRunMap(autoRunMap);
+  if (script.autoRun) {
+    setStatus(script, domains.trim() ? '自动执行域名已保存' : '自动执行将应用到所有网站', 'success');
+    await runAutoScriptNow(script);
+  }
+}
+
 function setStatus(script: ScriptItem, text: string, type: 'success' | 'error' | '' = '') {
   script.statusText = text;
   script.statusType = type;
+}
+
+async function runAutoScriptNow(script: ScriptItem) {
+  const response = await chrome.runtime.sendMessage({
+    type: 'RUN_AUTO_SCRIPT_NOW',
+    scriptId: script.id
+  });
+
+  if (response?.ok) {
+    setStatus(script, '自动执行已生效', 'success');
+  } else {
+    setStatus(script, response?.error || '自动执行未生效', 'error');
+  }
 }
 
 async function runScript(script: ScriptItem) {
@@ -173,6 +237,12 @@ async function deleteScript(script: ScriptItem) {
   if (titleMap[script.id] !== undefined) {
     delete titleMap[script.id];
     await setTitleMap(titleMap);
+  }
+
+  const autoRunMap = await getAutoRunMap();
+  if (autoRunMap[script.id] !== undefined) {
+    delete autoRunMap[script.id];
+    await setAutoRunMap(autoRunMap);
   }
 
   await fetchScripts();
@@ -270,6 +340,26 @@ onMounted(() => {
           <button class="danger-btn delete-script-btn" type="button" @click="deleteScript(script)">
             删除
           </button>
+        </div>
+
+        <div class="script-auto-run">
+          <label class="auto-run-toggle">
+            <input
+              type="checkbox"
+              :checked="script.autoRun"
+              @change="e => updateAutoRun(script, (e.target as HTMLInputElement).checked)"
+            />
+            <span>自动执行</span>
+          </label>
+
+          <textarea
+            v-if="script.autoRun"
+            class="auto-run-domains"
+            :value="script.autoRunDomains"
+            placeholder="每行一个域名；留空则对所有网站自动执行"
+            rows="3"
+            @change="e => updateAutoRunDomains(script, (e.target as HTMLTextAreaElement).value)"
+          ></textarea>
         </div>
 
         <div 
@@ -372,6 +462,41 @@ body {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
+}
+
+.script-auto-run {
+    margin-top: 10px;
+}
+
+.auto-run-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: #606266;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.auto-run-toggle input {
+    margin: 0;
+}
+
+.auto-run-domains {
+    width: 100%;
+    margin-top: 8px;
+    border: 1px solid #dcdfe6;
+    border-radius: 6px;
+    padding: 6px 8px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 18px;
+    color: #303133;
+}
+
+.auto-run-domains:focus {
+    outline: none;
+    border-color: #409eff;
 }
 
 button {
